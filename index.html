@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Finca Simulador PSX</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="ui">
+    <div>🍌 <span id="tp">3</span> · 🌱 <span id="th">1</span></div>
+    <div class="lbl">Energía</div><div class="bar"><div id="be" class="f"></div></div>
+    <div class="lbl">Hidratación</div><div class="bar"><div id="bh" class="f h"></div></div>
+    <div class="lbl">Estamina</div><div class="bar"><div id="bs" class="f s"></div></div>
+</div>
+
+<div id="info">🕐 <span id="clk">06:00</span> · Día <span id="day">1</span> · 🔪 <span id="md">100%</span></div>
+<button id="cfgBtn">⚙️</button>
+
+<div id="cfg">
+    <h2>🛠️ Debug & Test</h2>
+
+    <div class="sec">⏱ Tiempo</div>
+    <div class="row"><span>Velocidad:</span>
+        <select id="dtSpeed">
+            <option value="1">1× (real)</option>
+            <option value="10">10×</option>
+            <option value="60">60× (1 día/min)</option>
+            <option value="600">600× (1 día/6s)</option>
+            <option value="3600">3600× (1 día/s)</option>
+            <option value="0">⏸ Pausa</option>
+        </select>
+    </div>
+    <div class="row"><span>Hora del día:</span><input type="range" id="dtHour" min="0" max="1439" step="10" value="360"></div>
+    <div class="row"><span>Preset luz:</span>
+        <select id="ctd">
+            <option value="auto">Auto</option>
+            <option value="day">Día</option>
+            <option value="sunset">Atardecer</option>
+            <option value="night">Noche</option>
+        </select>
+    </div>
+
+    <div class="sec">🌱 Plantas</div>
+    <div class="row"><span>Vel. crecimiento:</span><input type="range" id="cgs" min="0.1" max="1000" step="0.1" value="1"></div>
+    <div class="row"><span class="hint">1× = 30 días reales por ciclo</span></div>
+    <div class="row"><span>Saltar al estado:</span>
+        <select id="dbStage">
+            <option value="">— elegir —</option>
+            <option value="0">0 Colino</option>
+            <option value="1">1 Vegetativo</option>
+            <option value="2">2 Pre-floración</option>
+            <option value="3">3 Maduro (con racimo)</option>
+            <option value="4">4 Cosechada</option>
+            <option value="5">5 Cortada (cormo)</option>
+        </select>
+    </div>
+    <div class="row"><span>Chubas:</span>
+        <button id="dbChubaAdd">+1</button>
+        <button id="dbChubaClear">Limpiar</button>
+    </div>
+    <div class="row"><span>Humedad suelo:</span><input type="range" id="dbMoist" min="0" max="100" value="50"></div>
+    <div class="row"><button id="dbResetPlants">🗑 Reiniciar plantas</button></div>
+
+    <div class="sec">👤 Jugador</div>
+    <div class="row"><span>Modo dios:</span><input type="checkbox" id="cgm"></div>
+    <div class="row"><span>Colinos:</span><button id="bs5">+5</button></div>
+    <div class="row"><span>Plátanos:</span><button id="dbPlatAdd">+5</button></div>
+    <div class="row"><span>Energía/Hidra/Est:</span><button id="dbRefill">Rellenar</button></div>
+
+    <div class="sec">💾 Partida</div>
+    <div class="row"><button id="bsv">💾 Guardar</button><button id="bld">📂 Cargar</button><button id="dbErase">🗑 Borrar save</button></div>
+
+    <button id="close">Cerrar</button>
+</div>
+
+<div id="ch"></div>
+<div id="act">Acción</div>
+
+<div id="hotbar">
+    <div class="slot active" data-tool="machete"><span class="num">1</span><div class="ic ic-m"></div></div>
+    <div class="slot" data-tool="wateringCan"><span class="num">2</span><div class="ic ic-w"></div></div>
+    <div class="slot" data-tool="colino"><span class="num">3</span><div class="ic ic-c"></div></div>
+    <div class="slot" data-tool="banana"><span class="num">4</span><div class="ic ic-b"></div></div>
+    <div class="slot" data-tool="bottle"><span class="num">5</span><div class="ic ic-bo"></div></div>
+    <div class="slot" data-tool="palin"><span class="num">6</span><div class="ic ic-p"></div></div>
+</div>
+
+<div id="ghost">
+    <button class="gbtn" id="bok">✓</button>
+    <button class="gbtn c" id="bcn">✗</button>
+</div>
+
+<div id="jz"><div id="jb"><div id="js"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/world.js"></script>
+<script src="js/player.js"></script>
+<script src="js/plant.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/loop.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
