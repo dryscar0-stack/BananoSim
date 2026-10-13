@@ -126,7 +126,19 @@ $('bcn').onclick = () => {
 };
 
 // ============================================================
-// PANEL DE DEBUG — botón ⚙️ alterna abrir/cerrar
+// BOTÓN DEL SOL
+// ============================================================
+const sunBtn = $('sunBtn');
+if (sunBtn) {
+    sunBtn.addEventListener('click', () => {
+        if (typeof window.triggerLookAtSun === 'function') {
+            window.triggerLookAtSun();
+        }
+    });
+}
+
+// ============================================================
+// PANEL DE DEBUG
 // ============================================================
 const cfgPanel = $('cfg');
 
@@ -138,7 +150,6 @@ function toggleCfg() {
 $('cfgBtn').onclick = toggleCfg;
 $('close').onclick = () => { cfgPanel.style.display = 'none'; };
 
-// Tiempo
 $('dtSpeed').onchange = e => { cfg.timeScale = +e.target.value; };
 $('dtHour').oninput = e => {
     cfg.mins = +e.target.value;
@@ -146,7 +157,6 @@ $('dtHour').oninput = e => {
 };
 $('ctd').onchange = e => { cfg.td = e.target.value; };
 
-// Plantas
 $('cgs').oninput = e => { cfg.gm = +e.target.value; };
 $('dbStage').onchange = e => {
     const v = e.target.value;
@@ -162,13 +172,11 @@ $('dbMoist').oninput = e => {
 };
 $('dbResetPlants').onclick = () => { if (typeof dbResetPlants === 'function') dbResetPlants(); };
 
-// Jugador
 $('cgm').onchange = e => { cfg.gm2 = e.target.checked; };
 $('bs5').onclick = () => { inv.hij += 5; updHUD(); };
 $('dbPlatAdd').onclick = () => { inv.plat += 5; updHUD(); };
 $('dbRefill').onclick = () => { en = 100; hy = 100; st2 = 100; updHUD(); };
 
-// Partida
 $('bsv').onclick = () => { saveGame(); };
 $('bld').onclick = () => { loadGame(); };
 $('dbErase').onclick = () => {

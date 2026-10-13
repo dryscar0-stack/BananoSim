@@ -6,10 +6,12 @@ const PL = [];
 const plantGrid = new Map();
 const gk = (x, z) => Math.round(x * 2) + ',' + Math.round(z * 2);
 
-// Una chuba nueva cada 1/3 de etapa de crecimiento
-// SECONDS_PER_STAGE / 3 = ~2100s reales a 1× → ~2.5 días de juego
 const CHUBA_INTERVAL_BASE = SECONDS_PER_STAGE / 3;
 const CHUBA_MAX = 6;
+
+const CHUBA_COLORS = [0x5a4033, 0x6b4f40, 0x7a5f52, 0x8d6e63, 0xa08858, 0xb59a76];
+const CHUBA_MATS = CHUBA_COLORS.map(c => psxMat(c, { side: THREE.DoubleSide }));
+const SPOT_MAT = psxMat(0x3a2818);
 
 // ============================================================
 // TRONCO
@@ -23,20 +25,20 @@ function buildTrunk() {
     for (let l = 0; l < NUM; l++) {
         const t = l / (NUM - 1);
         const radius = 0.35 - t * 0.15;
-        const height = 0.45 - t * 0.05;
-        const layer = cyl(radius - 0.02, radius, height, 8, l % 2 === 0 ? MAT.trunkLayer : MAT.trunk);
-        at(layer, 0, y + height / 2, 0);
+        const h = 0.45 - t * 0.05;
+        const layer = cyl(radius - 0.02, radius, h, 8, l % 2 === 0 ? MAT.trunkLayer : MAT.trunk);
+        at(layer, 0, y + h / 2, 0);
         layer.rotation.y = l * 0.4;
-        layer.rotation.z = (l % 2 === 0 ? 0.02 : -0.02);
+        layer.rotation.z = l % 2 === 0 ? 0.02 : -0.02;
         g.add(layer);
         if (l > 0) g.add(at(cyl(radius + 0.015, radius + 0.015, 0.03, 8, psxMat(0x3e5020)), 0, y, 0));
-        y += height;
+        y += h;
     }
     return g;
 }
 
 // ============================================================
-// CHUBAS — contenedor vacío, se llena dinámicamente
+// CHUBAS
 // ============================================================
 function buildChubas(p) {
     const g = new THREE.Group();
@@ -48,66 +50,55 @@ function buildChubas(p) {
 }
 
 function spawnChuba(p) {
-    if (p.chubaCount >= CHUBA_MAX) return null;
+    if (p.dryGroups.length >= CHUBA_MAX) return null;
 
     const d = p.chubaCount;
-    const t = d / (CHUBA_MAX - 1);
-
-    const colors = [0x5a4033, 0x6b4f40, 0x7a5f52, 0x8d6e63, 0xa08858, 0xb59a76];
-    const color = colors[d];
-    const chubaMat = psxMat(color, { side: THREE.DoubleSide });
+    const t = Math.min(d / (CHUBA_MAX - 1), 1);
+    const mat = CHUBA_MATS[Math.min(d, CHUBA_MATS.length - 1)];
 
     const chuba = new THREE.Group();
     const visual = new THREE.Group();
-
     const radius = lp(0.32, 0.42, t * 0.5);
-    const sheath = new THREE.Mesh(
+
+    visual.add(new THREE.Mesh(
         new THREE.CylinderGeometry(radius, radius + 0.02, 0.35, 8, 1, true),
-        chubaMat
-    );
-    visual.add(sheath);
+        mat
+    ));
 
     const bladeH = lp(0.4, 0.6, t);
-    const blade = box(0.03, bladeH, 0.18, chubaMat);
-    at(blade, radius + 0.02, bladeH / 2, 0);
-    visual.add(blade);
+    visual.add(at(box(0.03, bladeH, 0.18, mat), radius + 0.02, bladeH / 2, 0));
 
     const foldH = lp(0.6, 1.0, t);
-    const fold = box(0.025, foldH, 0.15, chubaMat);
+    const fold = box(0.025, foldH, 0.15, mat);
     at(fold, radius + 0.05, -foldH / 2 + 0.05, 0);
     fold.rotation.z = 0.25;
     visual.add(fold);
 
-    const tip = box(0.02, foldH * 0.5, 0.08, chubaMat);
+    const tip = box(0.02, foldH * 0.5, 0.08, mat);
     at(tip, radius + 0.05 + Math.sin(0.25) * foldH * 0.5, -foldH * 1.1, 0);
     tip.rotation.z = 0.25;
     visual.add(tip);
 
-    for (let m = 0; m < 3; m++) {
-        const spot = box(0.03, 0.08, 0.08, psxMat(0x3a2818));
-        at(spot, radius + 0.04, (rrand() - 0.5) * foldH * 0.6, (rrand() - 0.5) * 0.08);
-        visual.add(spot);
-    }
+    for (let m = 0; m < 3; m++)
+        visual.add(at(box(0.03, 0.08, 0.08, SPOT_MAT),
+            radius + 0.04,
+            (rrand() - 0.5) * foldH * 0.6,
+            (rrand() - 0.5) * 0.08));
 
     chuba.add(visual);
 
-    const hitRadius = 0.35;
     const hitHeight = 0.5 + bladeH + foldH;
     const hitbox = new THREE.Mesh(
-        new THREE.CylinderGeometry(hitRadius, hitRadius, hitHeight, 6),
+        new THREE.CylinderGeometry(0.35, 0.35, hitHeight, 6),
         MAT.invisible
     );
-    const centerY = (bladeH - foldH) / 2;
-    at(hitbox, radius * 0.5, centerY, 0);
+    at(hitbox, radius * 0.5, (bladeH - foldH) / 2, 0);
     tag(hitbox, 'dryLeaf', p, { rem: false, isHitbox: true });
     chuba.add(hitbox);
 
-    const baseY = lp(0.8, 2.4, t);
-    at(chuba, 0, baseY, 0);
+    at(chuba, 0, lp(0.8, 2.4, t), 0);
     chuba.rotation.y = (d * Math.PI * 2) / CHUBA_MAX;
     chuba.userData = { type: 'chubaGroup', p, rem: false };
-
-    // Animación de aparición: empieza pequeño
     chuba.scale.set(0.1, 0.1, 0.1);
 
     p.dryG.add(chuba);
@@ -115,7 +106,6 @@ function spawnChuba(p) {
     p.dryMeshes.push(hitbox);
     p.chubaCount++;
     p.hasDry = true;
-
     return chuba;
 }
 
@@ -141,15 +131,12 @@ function buildFronds() {
             const segW = lp(0.55, 0.15, segT);
             const segX = 0.55 + s * 0.55;
             const segY = -Math.pow(segT, 2) * 0.25;
+
             const seg = box(0.55, 0.03, segW, mat);
             at(seg, segX, segY, 0);
             seg.rotation.z = -segT * 0.15;
             frond.add(seg);
-        }
-        for (let s = 0; s < numSegs; s++) {
-            const segT = s / (numSegs - 1);
-            const segX = 0.55 + s * 0.55;
-            const segY = -Math.pow(segT, 2) * 0.25;
+
             const vein = box(0.55, 0.02, 0.04, MAT.frondDark);
             at(vein, segX, segY + 0.02, 0);
             vein.rotation.z = -segT * 0.15;
@@ -165,17 +152,14 @@ function buildFronds() {
 }
 
 // ============================================================
-// COLINOS
+// COLINOS LATERALES
 // ============================================================
 function buildColinos(p) {
     const g = new THREE.Group();
     p.colinos = [];
     for (let c = 0; c < 2; c++) {
         const col = new THREE.Group();
-
-        const brote = cone(0.24, 1.0, 5, MAT.colino.clone());
-        at(brote, 0, 0.5, 0);
-        col.add(brote);
+        col.add(at(cone(0.24, 1.0, 5, MAT.colino), 0, 0.5, 0));
         col.add(at(dodec(0.18, 0, MAT.soil), 0, 0.08, 0));
 
         for (let h = 0; h < 3; h++) {
@@ -186,10 +170,10 @@ function buildColinos(p) {
             col.add(hoja);
         }
         for (let r = 0; r < 4; r++) {
-            const ang = (r / 4) * Math.PI * 2;
+            const a = (r / 4) * Math.PI * 2;
             const raiz = cyl(0.01, 0.004, 0.12, 4, MAT.root);
-            at(raiz, Math.cos(ang) * 0.12, 0.04, Math.sin(ang) * 0.12);
-            rot(raiz, Math.sin(ang) * 0.8, 0, Math.cos(ang) * 0.8);
+            at(raiz, Math.cos(a) * 0.12, 0.04, Math.sin(a) * 0.12);
+            rot(raiz, Math.sin(a) * 0.8, 0, Math.cos(a) * 0.8);
             col.add(raiz);
         }
 
@@ -209,16 +193,16 @@ function buildColinos(p) {
 
 function buildSpear(p) {
     const g = new THREE.Group();
-    const brote = cone(0.3, 1.4, 5, MAT.spear.clone());
+    const brote = cone(0.3, 1.4, 5, MAT.spear);
     at(brote, 0, 0.7, 0);
     tag(brote, 'colinoSeed', p);
     g.add(brote);
     g.add(at(dodec(0.25, 0, MAT.soil), 0, 0.1, 0));
     for (let i = 0; i < 5; i++) {
-        const ang = (i / 5) * Math.PI * 2;
+        const a = (i / 5) * Math.PI * 2;
         const raiz = cyl(0.015, 0.006, 0.2, 4, MAT.root);
-        at(raiz, Math.cos(ang) * 0.18, 0.02, Math.sin(ang) * 0.18);
-        rot(raiz, Math.sin(ang) * 0.7, 0, Math.cos(ang) * 0.7);
+        at(raiz, Math.cos(a) * 0.18, 0.02, Math.sin(a) * 0.18);
+        rot(raiz, Math.sin(a) * 0.7, 0, Math.cos(a) * 0.7);
         g.add(raiz);
     }
     return g;
@@ -250,17 +234,10 @@ function makePlant(x, z, st = 0) {
     g.add(collider);
     p.collider = collider;
 
-    p.spear = buildSpear(p);
-    g.add(p.spear);
-
-    p.trunk = buildTrunk();
-    g.add(p.trunk);
-
-    p.dryG = buildChubas(p);
-    g.add(p.dryG);
-
-    p.frondsG = buildFronds();
-    g.add(p.frondsG);
+    p.spear = buildSpear(p); g.add(p.spear);
+    p.trunk = buildTrunk(); g.add(p.trunk);
+    p.dryG = buildChubas(p); g.add(p.dryG);
+    p.frondsG = buildFronds(); g.add(p.frondsG);
 
     p.clusterG = new THREE.Group();
     at(p.clusterG, 0, 3.0, 0.3);
@@ -272,8 +249,7 @@ function makePlant(x, z, st = 0) {
     p.clusterG.add(hitBox);
     p.clusterHit = hitBox;
 
-    p.colinosG = buildColinos(p);
-    g.add(p.colinosG);
+    p.colinosG = buildColinos(p); g.add(p.colinosG);
 
     at(g, x, th(x, z), z);
     sc.add(g);
@@ -284,14 +260,9 @@ function makePlant(x, z, st = 0) {
 function upd(p) {
     const s = p.stage;
     if (s === STAGE.CORTADA || s === STAGE.MUERTA) {
-        p.spear.visible = false;
-        p.trunk.visible = false;
-        p.dryG.visible = false;
-        p.frondsG.visible = false;
-        p.colinosG.visible = false;
-        p.clusterG.visible = false;
-        p.collider.visible = false;
-        if (p.baseCormo) p.baseCormo.visible = (s === STAGE.CORTADA);
+        [p.spear, p.trunk, p.dryG, p.frondsG, p.colinosG, p.clusterG, p.collider]
+            .forEach(o => o.visible = false);
+        if (p.baseCormo) p.baseCormo.visible = s === STAGE.CORTADA;
         return;
     }
 
@@ -303,17 +274,14 @@ function upd(p) {
     p.clusterG.visible = s === STAGE.MADURO && p.clusterHands > 0;
     p.collider.visible = s >= STAGE.VEGETATIVO && s <= STAGE.COSECHADA;
     p.group.scale.setScalar(s === STAGE.VEGETATIVO ? 0.8 : 1);
-
     if (p.baseCormo) p.baseCormo.visible = false;
 }
 
 function tickSunLean(p, sunX, sunZ, isDay) {
     if (!isDay) {
-        p.sunLeanTarget.x = 0;
-        p.sunLeanTarget.z = 0;
+        p.sunLeanTarget.x = p.sunLeanTarget.z = 0;
     } else {
-        const dx = sunX - p.x;
-        const dz = sunZ - p.z;
+        const dx = sunX - p.x, dz = sunZ - p.z;
         const dist = Math.hypot(dx, dz);
         if (dist > 0.1) {
             p.sunLeanTarget.x = (dx / dist) * 0.05;
@@ -329,37 +297,26 @@ function tickSunLean(p, sunX, sunZ, isDay) {
 }
 
 // ============================================================
-// EMISIÓN DEL RACIMO (CORREGIDO)
+// EMISIÓN DEL RACIMO
 // ============================================================
 function tryEmitCluster(p, dt) {
-    if (p.stage !== STAGE.MADURO) return;
-    // Solo bloquea si QUEDAN chubas sin cortar
-    if (p.hasDry) return;
-    if (p.clusterHands > 0) return;
-
+    if (p.stage !== STAGE.MADURO || p.hasDry || p.clusterHands > 0) return;
     const qf = qualityFactor(p);
     p.emitCooldown += dt;
-    const baseChance = 0.02 + qf * 0.05;
-    const scaled = baseChance * cfg.gm;
-    const boost = p.emitCooldown > 15 ? 1.5 : 1.0;
-    if (rrand() < scaled * boost * dt) {
+    const prob = Math.min((0.02 + qf * 0.05) * cfg.gm * (p.emitCooldown > 15 ? 1.5 : 1) * dt, 1);
+    if (rrand() < prob) {
         emitCluster(p, qf);
         p.emitCooldown = 0;
     }
 }
 
 function emitCluster(p, qf) {
-    let hands;
-    if (qf < 0.35) hands = 1 + Math.floor(rrand() * 2);
-    else if (qf < 0.65) hands = 2 + Math.floor(rrand() * 2);
-    else hands = 4 + Math.floor(rrand() * 2);
-    hands = cl(hands, 1, 5);
-
-    let mat;
-    if (qf >= 0.7) mat = MAT.banana;
-    else if (qf >= 0.4) mat = MAT.bananaMed;
-    else if (qf >= 0.2) mat = MAT.bananaPoor;
-    else mat = MAT.bananaBad;
+    const hands = qf < 0.35 ? 1 + Math.floor(rrand() * 2)
+                : qf < 0.65 ? 2 + Math.floor(rrand() * 2)
+                : 4 + Math.floor(rrand() * 2);
+    const total = cl(hands, 1, 5);
+    const mat = qf >= 0.7 ? MAT.banana : qf >= 0.4 ? MAT.bananaMed
+              : qf >= 0.2 ? MAT.bananaPoor : MAT.bananaBad;
 
     for (let seg = 0; seg < 3; seg++) {
         const stalk = cyl(0.04, 0.045, 0.35, 5, MAT.stalk);
@@ -370,7 +327,7 @@ function emitCluster(p, qf) {
         p.handsMeshes.push(stalk);
     }
 
-    for (let h = 0; h < hands; h++) {
+    for (let h = 0; h < total; h++) {
         const handGroup = new THREE.Group();
         const numBan = 5 + Math.floor(rrand() * 3);
         for (let b = 0; b < numBan; b++) {
@@ -381,10 +338,11 @@ function emitCluster(p, qf) {
             at(tip, 0, -0.15, 0);
             tip.rotation.x = Math.PI;
             wrap.add(body, tip);
-            const ang = (b / numBan) * Math.PI * 2;
-            at(wrap, Math.cos(ang) * 0.1, 0, Math.sin(ang) * 0.1);
-            wrap.rotation.z = 0.2 + Math.cos(ang) * 0.2;
-            wrap.rotation.x = Math.sin(ang) * 0.2;
+
+            const a = (b / numBan) * Math.PI * 2;
+            at(wrap, Math.cos(a) * 0.1, 0, Math.sin(a) * 0.1);
+            wrap.rotation.z = 0.2 + Math.cos(a) * 0.2;
+            wrap.rotation.x = Math.sin(a) * 0.2;
             tag(wrap, 'bananaCluster', p, { isHitBox: false });
             tag(body, 'bananaCluster', p, { isHitBox: false });
             handGroup.add(wrap);
@@ -394,13 +352,13 @@ function emitCluster(p, qf) {
         p.clusterG.add(handGroup);
         p.handsMeshes.push(handGroup);
     }
-    p.clusterHands = hands;
+    p.clusterHands = total;
     p.clusterG.visible = true;
     if (p.clusterHit) p.clusterHit.visible = true;
 }
 
 // ============================================================
-// CORTAR
+// CORMO Y SUCKER
 // ============================================================
 function buildCormo(p) {
     const g = new THREE.Group();
@@ -408,22 +366,26 @@ function buildCormo(p) {
     at(cormo, 0, 0.15, 0);
     tag(cormo, 'baseCormo', p);
     g.add(cormo);
+
     const muñon = cyl(0.22, 0.32, 0.22, 8, MAT.trunkBase);
     at(muñon, 0, 0.4, 0);
     tag(muñon, 'baseCormo', p);
     g.add(muñon);
+
     const ring = cyl(0.22, 0.22, 0.04, 8, psxMat(0xa4b86a));
     at(ring, 0, 0.51, 0);
     tag(ring, 'baseCormo', p);
     g.add(ring);
+
     for (let i = 0; i < 6; i++) {
-        const ang = (i / 6) * Math.PI * 2;
+        const a = (i / 6) * Math.PI * 2;
         const raiz = cyl(0.025, 0.01, 0.35, 4, MAT.root);
-        at(raiz, Math.cos(ang) * 0.35, 0.06, Math.sin(ang) * 0.35);
-        rot(raiz, Math.sin(ang) * 1.2, 0, Math.cos(ang) * 1.2);
+        at(raiz, Math.cos(a) * 0.35, 0.06, Math.sin(a) * 0.35);
+        rot(raiz, Math.sin(a) * 1.2, 0, Math.cos(a) * 1.2);
         tag(raiz, 'baseCormo', p);
         g.add(raiz);
     }
+
     const tierra = dodec(0.4, 0, MAT.soil);
     at(tierra, 0, 0.02, 0);
     tierra.scale.set(1.3, 0.35, 1.3);
@@ -437,14 +399,7 @@ function cutHarvestedPlant(p) {
         p.baseCormo = buildCormo(p);
         p.group.add(p.baseCormo);
     }
-    p.spear.visible = false;
-    p.trunk.visible = false;
-    p.dryG.visible = false;
-    p.frondsG.visible = false;
-    p.colinosG.visible = false;
-    p.clusterG.visible = false;
-    p.collider.visible = false;
-    p.baseCormo.visible = true;
+    upd(p);
     p.group.rotation.set(0, 0, 0);
     p.group.position.y = th(p.x, p.z);
     p.group.scale.setScalar(1);
@@ -455,38 +410,58 @@ function cutHarvestedPlant(p) {
 function growSuckerFromBase(p) {
     if (p.sucker) return;
     const g = new THREE.Group();
-    const brote = cone(0.15, 0.7, 5, MAT.spear.clone());
-    at(brote, 0, 0.35, 0);
-    tag(brote, 'sucker', p, { rem: false });
-    g.add(brote);
+    g.add(at(cone(0.15, 0.7, 5, MAT.spear), 0, 0.35, 0));
     for (let i = 0; i < 3; i++) {
         const hoja = box(0.28, 0.02, 0.09, MAT.colinoLeaf);
         at(hoja, 0, 0.58, 0);
         hoja.rotation.y = (i * Math.PI * 2) / 3;
         hoja.rotation.z = 0.35;
-        tag(hoja, 'sucker', p, { rem: false });
         g.add(hoja);
     }
     g.add(at(dodec(0.12, 0, MAT.soil), 0, 0.05, 0));
     at(g, 0.4, 0.1, 0.2);
+
+    const brote = g.children[0];
+    tag(brote, 'sucker', p, { rem: false });
+    for (let i = 1; i < 4; i++) tag(g.children[i], 'sucker', p, { rem: false });
+
     p.group.add(g);
     p.sucker = g;
 }
 
 // ============================================================
-// FUNCIONES DE DEBUG (llamadas desde el panel)
+// DEBUG
 // ============================================================
+function clearPlantChubas(p) {
+    while (p.dryG.children.length) {
+        const child = p.dryG.children[0];
+        child.traverse(c => {
+            if (c.isMesh && c.geometry && c.geometry !== MAT.invisible) {
+                // No dispose de geometrías compartidas
+            }
+        });
+        p.dryG.remove(child);
+    }
+    p.dryGroups = [];
+    p.dryMeshes = [];
+    p.chubaCount = 0;
+    p.chubaTimer = 0;
+    p.hasDry = false;
+}
+
 function dbSetStage(target) {
     for (const p of PL) {
         if (p.stage === STAGE.MUERTA) continue;
         p.stage = target;
         p.timer = 0;
-        // Si pasamos a maduro, mantener sin chubas
-        if (target === STAGE.MADURO) {
-            // Limpiar todas las chubas
-            p.dryGroups.forEach(g => g.visible = false);
-            p.hasDry = false;
-            p.chubaCount = 0;
+
+        if (target === STAGE.MADURO || target === STAGE.COSECHADA || target === STAGE.CORTADA) {
+            clearPlantChubas(p);
+        }
+
+        if (target === STAGE.CORTADA && !p.baseCormo) {
+            p.baseCormo = buildCormo(p);
+            p.group.add(p.baseCormo);
         }
         upd(p);
     }
@@ -494,8 +469,7 @@ function dbSetStage(target) {
 
 function dbAddChuba() {
     for (const p of PL) {
-        if (p.stage === STAGE.MUERTA) continue;
-        if (p.stage < STAGE.VEGETATIVO) continue;
+        if (p.stage === STAGE.MUERTA || p.stage < STAGE.VEGETATIVO) continue;
         spawnChuba(p);
     }
 }
@@ -503,16 +477,7 @@ function dbAddChuba() {
 function dbClearChubas() {
     for (const p of PL) {
         if (p.stage === STAGE.MUERTA) continue;
-        p.dryGroups.forEach(g => {
-            g.visible = false;
-            g.userData.rem = true;
-        });
-        p.hasDry = false;
-        p.chubaCount = 0;
-        p.dryGroups = [];
-        p.dryMeshes = [];
-        // Limpiar el grupo contenedor
-        while (p.dryG.children.length) p.dryG.remove(p.dryG.children[0]);
+        clearPlantChubas(p);
     }
 }
 

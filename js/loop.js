@@ -1,5 +1,5 @@
 // ============================================================
-// loop.js — Ciclo principal con control de velocidad del tiempo
+// loop.js — Ciclo principal
 // ============================================================
 
 let last = performance.now();
@@ -16,15 +16,12 @@ function loop(now) {
   const realDt = Math.min((now - last) / 1000, 0.05);
   last = now;
   
-  // dt = tiempo del juego (afectado por timeScale)
-  // realDt = tiempo real (para cosas del jugador)
   const dt = realDt * (cfg.timeScale || 1);
   elapsed += realDt;
   
   if (!floorMeshRef && typeof floorMesh !== 'undefined') floorMeshRef = floorMesh;
   if (!clkNode) clkNode = $('clk');
   
-  // Avance del tiempo del mundo
   if (cfg.td === 'auto') {
     const prevMins = cfg.mins;
     cfg.mins = (cfg.mins + dt * MINUTES_PER_SECOND) % 1440;
@@ -51,7 +48,6 @@ function loop(now) {
   const isNight = (hour >= 20 || hour < 6);
   const isDay = !isNight && hour >= 6;
   
-  // Fases lunares (usan dt para que aceleren con el tiempo)
   moonPhaseTimer += dt;
   if (moonPhaseTimer > 12 * 60) {
     moonPhaseTimer = 0;
@@ -59,24 +55,19 @@ function loop(now) {
     if (typeof updateMoonPhase === 'function') updateMoonPhase();
   }
   
-  // ============================================================
-  // TICKS DE MUNDO (usan dt para acelerarse con timeScale)
-  // ============================================================
+  // Ticks de mundo
   tickLight(dt);
   if (typeof tickFireflies === 'function') tickFireflies(elapsed, isNight);
   tickMoisturePatches(dt);
   if (typeof tickWetSpots === 'function') tickWetSpots(dt);
   
-  // ============================================================
-  // TICKS DEL JUGADOR (usan realDt para que no se aceleren)
-  // ============================================================
+  // Ticks del jugador (siempre tiempo real)
   tickSw(realDt);
   tickDrops(realDt);
   tickMove(realDt);
+  if (typeof tickSunAnim === 'function') tickSunAnim(realDt);
   
-  // ============================================================
-  // PLANTAS — todo usa dt (velocidad del juego)
-  // ============================================================
+  // Plantas
   const sunX = (typeof sun !== 'undefined' && sun.visible) ? sun.position.x : 0;
   const sunZ = (typeof sun !== 'undefined' && sun.visible) ? sun.position.z : 0;
   
@@ -86,7 +77,6 @@ function loop(now) {
     
     tickSunLean(p, sunX, sunZ, isDay && sunX !== 0);
     
-    // Crecimiento por etapas — ahora responde a timeScale
     if (p.stage < STAGE.MADURO) {
       const effectiveSeconds = SECONDS_PER_STAGE / cfg.gm;
       p.timer += dt;
@@ -97,7 +87,6 @@ function loop(now) {
       }
     }
     
-    // Generación de chubas — responde a timeScale
     if (p.stage >= STAGE.VEGETATIVO && p.stage < STAGE.COSECHADA) {
       if (p.chubaCount < CHUBA_MAX) {
         const chubaInterval = CHUBA_INTERVAL_BASE / cfg.gm;
@@ -109,7 +98,6 @@ function loop(now) {
       }
     }
     
-    // Animación de aparición de chubas (visual, realDt)
     for (const chuba of p.dryGroups) {
       if (!chuba.userData.rem && chuba.scale.x < 1) {
         const s = lp(chuba.scale.x, 1, 0.15);
@@ -117,10 +105,8 @@ function loop(now) {
       }
     }
     
-    // Emisión del racimo — responde a timeScale
     if (p.stage === STAGE.MADURO) tryEmitCluster(p, dt);
     
-    // Ciclo del cormo — responde a timeScale
     if (p.stage === STAGE.CORTADA) {
       p.suckerAge += dt * cfg.gm;
       if (!p.sucker && p.suckerAge > 8) growSuckerFromBase(p);
@@ -143,13 +129,11 @@ function loop(now) {
     }
   }
   
-  // Humedad del suelo — responde a timeScale
   if (isDay) {
     soilMoisture = cl(soilMoisture - dt * 0.008, 0, 1);
     updateFloorColor();
   }
   
-  // Ghost y supervivencia
   tickGhost();
   
   if (!cfg.gm2) {
