@@ -87,6 +87,35 @@ canvas { image-rendering: pixelated; display: block; }
     font-family: inherit; font-size: 10px; font-weight: bold;
     z-index: 30;
 }
+
+#sunBtn {
+    position: absolute; top: 8px; right: 50px;
+    background: #d4a017; border: 2px solid #f1c40f;
+    color: #fff; padding: 5px 9px;
+    font-family: inherit; font-size: 11px; font-weight: bold;
+    z-index: 30;
+}
+#sunBtn:active { background: #b8860b; }
+
+#sunText {
+    position: absolute; top: 45%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff8dc;
+    font-family: 'Courier New', monospace;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    text-shadow: 2px 2px 0 #4a2f1a, -1px -1px 0 #4a2f1a, 1px -1px 0 #4a2f1a, -1px 1px 0 #4a2f1a;
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    white-space: nowrap;
+    max-width: 90vw;
+}
+#sunText.show { opacity: 1; }
+
 #cfg {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
     width: 92%; max-width: 340px; max-height: 90vh; overflow-y: auto;
